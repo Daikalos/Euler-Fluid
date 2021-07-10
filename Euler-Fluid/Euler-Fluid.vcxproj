@@ -150,12 +150,19 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Cell.cpp" />
+    <ClCompile Include="Grid.cpp" />
     <ClCompile Include="InputHandler.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Cell.h" />
+    <ClInclude Include="Grid.h" />
     <ClInclude Include="InputHandler.h" />
+    <ClInclude Include="Rectangle.h" />
+    <ClInclude Include="Utilities.h" />
+    <ClInclude Include="VecUtil.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
