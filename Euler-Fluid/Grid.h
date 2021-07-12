@@ -1,48 +1,38 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
-#include <unordered_map>
+#include <execution>
+
 #include "VecUtil.h"
+#include "Rectangle.h"
 #include "Cell.h"
 
-template<typename T> class Grid
+class Grid
 {
 public:
 	Grid(int grid_left, int grid_top, int grid_right, int grid_bot, int cont_width, int cont_height);
 	~Grid();
 
-	inline Container<T>* at_pos(const sf::Vector2f& position) const
+	inline Cell* at_pos(const sf::Vector2f& pos) const
 	{
-		const sf::Vector2i& pos = ((sf::Vector2i)position - gridRect.top_left) / contDims;
+		const sf::Vector2i& position = ((sf::Vector2i)pos - gridRect.top_left) / cellDims;
 
-		if (!within_grid(pos))
+		if (!within_grid(position))
 			return nullptr;
 
-		return at_pos(pos);
+		return at_pos(position);
 	}
-	inline Container<T>* at_pos(const T& item) const
-	{
-		const Boid* boid = dynamic_cast<const Boid*>(&item);
 
-		if (boid == nullptr)
-			return nullptr;
-
-		const sf::Vector2i& pos = ((sf::Vector2i)boid->get_origin() - gridRect.top_left) / contDims;
-
-		if (!within_grid(pos))
-			return nullptr;
-
-		return at_pos(pos);
-	}
+	void update(float deltaTime);
 
 private:
-	inline Container<T>* at_pos(int x, int y) const
+	inline Cell* at_pos(int x, int y) const
 	{
-		return &containers[x + y * width];
+		return &cells[x + y * width];
 	}
-	inline Container<T>* at_pos(const sf::Vector2i& position) const
+	inline Cell* at_pos(const sf::Vector2i& pos) const
 	{
-		return &containers[position.x + position.y * width];
+		return &cells[pos.x + pos.y * width];
 	}
 
 	inline bool within_grid(const sf::Vector2i& pos) const
@@ -51,12 +41,10 @@ private:
 	}
 
 private:
-	Container<T>* containers;
-	sf::Vector2i contDims;
+	Cell* cells;
+	sf::Vector2i cellDims;
 
-	std::unordered_map<const T*, Container<T>*> items;
-
-	unsigned short width, height;
+	unsigned short width, height, count;
 	Rect_i gridRect;
 
 private:

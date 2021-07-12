@@ -4,6 +4,8 @@
 
 #include "Camera.h"
 #include "InputHandler.h"
+#include "Grid.h"
+#include "Cell.h"
 
 int main()
 {
@@ -17,6 +19,8 @@ int main()
 
 	sf::Clock clock;
 	float deltaTime = FLT_EPSILON;
+
+	Grid* grid = new Grid(0, 0, window.getSize().x, window.getSize().y, 64, 64);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -56,6 +60,8 @@ int main()
 				break;
 			}
 		}
+
+		grid->update(deltaTime);
 
 		camera.update(inputHandler);
 		
