@@ -3,7 +3,7 @@
 
 #include "Camera.h"
 #include "InputHandler.h"
-#include "Grid.h"
+#include "Fluid.h"
 #include "Cell.h"
 
 int main()
@@ -31,12 +31,15 @@ int main()
 	circle.setFillColor(sf::Color::Red);
 
 	Camera camera(window);
-	InputHandler inputHandler;
+	InputHandler input_handler;
+	
+	sf::Vector2f mouse_pos = sf::Vector2f(camera.get_mouse_world_position());;
+	sf::Vector2f mouse_pos_prev = mouse_pos;
 
 	sf::Clock clock;
-	float deltaTime = FLT_EPSILON;
+	float dt = FLT_EPSILON;
 
-	Grid grid(0, 0, window.getSize().x, window.getSize().y, 64, 64);
+	Fluid fluid(video_mode.size.y / 10.0f, video_mode.size.y / 10.0f, 0.0f, 0.0000001f);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -52,9 +55,9 @@ int main()
 	int i = 0;
 	while (window.isOpen())
 	{
-		deltaTime = clock.restart().asSeconds();
+		dt = std::fminf(clock.restart().asSeconds(), 0.075f);
 
-		inputHandler.update();
+		input_handler.update();
 
 		sf::Event event;
 		while (window.pollEvent(event))
@@ -76,21 +79,33 @@ int main()
 
 				break;
 			case sf::Event::MouseWheelScrolled:
-				inputHandler.set_scrollDelta(event.mouseWheelScroll.delta);
+				input_handler.set_scrollDelta(event.mouseWheelScroll.delta);
 				break;
 			}
 		}
 
+		if (input_handler.get_left_pressed())
+			fluid.add_density(mouse_pos.x / 10.0f, mouse_pos.y / 10.0f, 200.0f);
 
-		camera.update(inputHandler);
+		mouse_pos = sf::Vector2f(camera.get_mouse_world_position());
+
+		sf::Vector2f amount = mouse_pos - mouse_pos_prev;
+
+		fluid.add_velocity(mouse_pos.x / 10.0f, mouse_pos.y / 10.0f, amount.x / 10.0f, amount.y / 10.0f);
+
+		fluid.update(dt);
+
+		camera.update(input_handler);
 		
 		window.setView(camera.get_view());
 
 		window.clear();
 
-		window.draw(circle);
+		fluid.draw(window);
 
 		window.display();
+
+		mouse_pos_prev = mouse_pos;
 	}
 
 	return 0;
