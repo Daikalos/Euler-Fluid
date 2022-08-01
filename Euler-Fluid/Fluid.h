@@ -2,8 +2,19 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <SFML/OpenGL.hpp>
 
 #include <execution>
+
+struct Vertex
+{
+	GLfloat x, y;
+};
+
+struct Color
+{
+	GLfloat r, g, b;
+};
 
 class Fluid
 {
@@ -59,7 +70,7 @@ public:
 	}
 
 private:
-	size_t W, H, N;
+	size_t W, H, N, V;
 	float diff, visc;
 
 	std::vector<float> u;
@@ -70,6 +81,9 @@ private:
 	std::vector<float> density;
 	std::vector<float> density_prev;
 
-	std::vector<sf::RectangleShape> rectangles;
+	std::vector<int> range;
+
+	std::vector<Vertex> vertices;
+	std::vector<Color> colors;
 };
 

@@ -1,29 +1,38 @@
 #include "Fluid.h"
 
 Fluid::Fluid(const size_t& width, const size_t& height, const float& diff, const float& visc)
-	: W(width), H(height), N(width * height), diff(diff), visc(visc)
+	: W(width), H(height), N(width * height), V(N * 4), diff(diff), visc(visc)
 {
-	u.resize(N, 0.0f);
-	v.resize(N, 0.0f);
+	u.resize(N);
+	v.resize(N);
 
-	u_prev.resize(N, 0.0f);
-	v_prev.resize(N, 0.0f);
+	u_prev.resize(N);
+	v_prev.resize(N);
 
-	density.resize(N, 0.0f);
-	density_prev.resize(N, 0.0f);
+	density.resize(N);
+	density_prev.resize(N);
 
-	rectangles.reserve(N);
+	range.reserve(N);
+	for (int i = 0; i < N; ++i)
+		range.push_back(i);
+
+	vertices.resize(V);
+	colors.resize(V);
+
 	for (int y = 0; y < H; ++y)
 		for (int x = 0; x < W; ++x)
 		{
-			int index = IX(x, y);
+			int i = IX(x, y) * 4;
 
-			sf::RectangleShape rect;
+			int x0 = x * 10;
+			int x1 = (x + 1) * 10;
+			int y0 = y * 10;
+			int y1 = (y + 1) * 10;
 
-			rect.setSize(sf::Vector2f(10.0f, 10.0f));
-			rect.setPosition(sf::Vector2f(x * 10.0f, y * 10.0f));
-
-			rectangles.push_back(rect);
+			vertices[i + 0] = Vertex(x0, y0);
+			vertices[i + 1] = Vertex(x0, y1);
+			vertices[i + 2] = Vertex(x1, y1);
+			vertices[i + 3] = Vertex(x1, y0);
 		}
 }
 
@@ -60,21 +69,24 @@ void Fluid::advect(int b, float* d, float* d0, float* u, float* v, float dt)
 	float dtx = dt * (W - 2);
 	float dty = dt * (H - 2);
 
+	float wf = float(W);
+	float hf = float(H);
+
 	for (int i = 1; i < H - 1; ++i) 
 	{
 		for (int j = 1; j < W - 1; ++j) 
 		{
-			x = float(i) - dtx * u[IX(i, j)]; 
-			y = float(j) - dty * v[IX(i, j)];
+			x = float(j) - dtx * u[IX(j, i)]; 
+			y = float(i) - dty * v[IX(j, i)];
 
 			if (x < 0.5f) x = 0.5f; 
-			if (x > W + 0.5f) x = W + 0.5f; 
+			if (x > wf + 0.5f) x = wf + 0.5f;
 
 			i0 = std::floorf(x); 
 			i1 = i0 + 1.0f;
 
 			if (y < 0.5f) y = 0.5f;
-			if (y > H + 0.5f) y = H + 0.5f; 
+			if (y > hf + 0.5f) y = hf + 0.5f;
 			
 			j0 = std::floorf(y);
 			j1 = j0 + 1.0f;
@@ -84,7 +96,7 @@ void Fluid::advect(int b, float* d, float* d0, float* u, float* v, float dt)
 			t1 = y - j0; 
 			t0 = 1.0f - t1;
 
-			d[IX(i, j)] = 
+			d[IX(j, i)] = 
 				s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
 				s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
 		}
@@ -167,16 +179,23 @@ void Fluid::update(const float& dt)
 
 void Fluid::draw(sf::RenderWindow& window)
 {
-	std::for_each(rectangles.begin(), rectangles.end(),
-		[&](sf::RectangleShape& rect)
+	glVertexPointer(2, GL_FLOAT, 0, vertices.data());
+	glColorPointer(3, GL_FLOAT, 0, colors.data());
+
+	std::for_each(std::execution::par_unseq,
+		range.begin(), range.end(),
+		[&](const int& i)
 		{
-			int i = (&rect - rectangles.data());
+			float r = map_to_range(u[i], -0.05f, 0.05f, 0.0f, 1.0f);
+			float g = map_to_range(v[i], -0.05f, 0.05f, 0.0f, 1.0f);
 
-			int r = (int)map_to_range(u[i], -0.05, 0.05f, 0, 255);
-			int g = (int)map_to_range(v[i], -0.05, 0.05f, 0, 255);
+			int v = i * 4;
 
-			rect.setFillColor(sf::Color(r, g, 255));
-
-			window.draw(rect);
+			colors[v + 0] = Color(r, g, 1.0f);
+			colors[v + 1] = Color(r, g, 1.0f);
+			colors[v + 2] = Color(r, g, 1.0f);
+			colors[v + 3] = Color(r, g, 1.0f);
 		});
+
+	glDrawArrays(GL_QUADS, 0, V);
 }

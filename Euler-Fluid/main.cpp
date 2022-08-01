@@ -20,7 +20,7 @@ int main()
 	if (!video_mode.isValid())
 		return -1;
 
-	sf::RenderWindow window(video_mode, "Euler Fluid"); //sf::Style::Fullscreen);
+	sf::RenderWindow window(video_mode, "Euler Fluid", sf::Style::Fullscreen);
 
 	if (!window.setActive(true))
 		return -1;
@@ -39,7 +39,7 @@ int main()
 	sf::Clock clock;
 	float dt = FLT_EPSILON;
 
-	Fluid fluid(video_mode.size.y / 10.0f, video_mode.size.y / 10.0f, 0.0f, 0.0000001f);
+	Fluid fluid(video_mode.size.x / 10.0f, video_mode.size.y / 10.0f, 0.0f, 0.0000001f);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -84,28 +84,35 @@ int main()
 			}
 		}
 
-		if (input_handler.get_left_pressed())
-			fluid.add_density(mouse_pos.x / 10.0f, mouse_pos.y / 10.0f, 200.0f);
+		camera.update(input_handler);
 
 		mouse_pos = sf::Vector2f(camera.get_mouse_world_position());
-
 		sf::Vector2f amount = mouse_pos - mouse_pos_prev;
+		mouse_pos_prev = mouse_pos;
+
+		if (input_handler.get_left_held())
+			fluid.add_density(mouse_pos.x / 10.0f, mouse_pos.y / 10.0f, 200.0f);
 
 		fluid.add_velocity(mouse_pos.x / 10.0f, mouse_pos.y / 10.0f, amount.x / 10.0f, amount.y / 10.0f);
-
 		fluid.update(dt);
-
-		camera.update(input_handler);
 		
-		window.setView(camera.get_view());
+		glClear(GL_COLOR_BUFFER_BIT);
 
-		window.clear();
+		window.pushGLStates();
+
+
+
+		window.popGLStates();
+
+		glPushMatrix();
+
+		glLoadMatrixf(camera.get_world_matrix());
 
 		fluid.draw(window);
 
-		window.display();
+		glPopMatrix();
 
-		mouse_pos_prev = mouse_pos;
+		window.display();
 	}
 
 	return 0;
