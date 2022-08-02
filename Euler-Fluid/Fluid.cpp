@@ -259,8 +259,8 @@ void Fluid::draw()
 		range, range + N,
 		[&](const int& i)
 		{
-			float r = map_to_range(vx[i], -0.05f, 0.05f, 0.0f, 1.0f);
-			float b = map_to_range(vy[i], -0.05f, 0.05f, 0.0f, 1.0f);
+			float r = 0.5f - map_to_range(vx[i], -0.05f, 0.05f, 0.0f, 1.0f);
+			float b = 0.5f - map_to_range(vy[i], -0.05f, 0.05f, 0.0f, 1.0f);
 
 			int vy = i * 4;
 
