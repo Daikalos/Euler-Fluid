@@ -3,21 +3,33 @@
 Fluid::Fluid(Config* config, const size_t& width, const size_t& height, const float& diff, const float& visc)
 	: config(config), W(width), H(height), N(width * height), V(N * 4), diff(diff), visc(visc)
 {
-	vx.resize(N);
-	vy.resize(N);
+	vx = (float*)::operator new(sizeof(float) * N);
+	vy = (float*)::operator new(sizeof(float) * N);
 
-	vx_prev.resize(N);
-	vy_prev.resize(N);
+	vx_prev = (float*)::operator new(sizeof(float) * N);
+	vy_prev = (float*)::operator new(sizeof(float) * N);
 
-	density.resize(N);
-	density_prev.resize(N);
+	density = (float*)::operator new(sizeof(float) * N);
+	density_prev = (float*)::operator new(sizeof(float) * N);
 
-	range.reserve(N);
-	for (int i = 0; i < N; ++i)
-		range.push_back(i);
+	range = (int*)::operator new(sizeof(int) * N);
 
-	vertices.resize(V);
-	colors.resize(V);
+	memset(vx, 0, sizeof(float) * N);
+	memset(vy, 0, sizeof(float) * N);
+
+	memset(vx_prev, 0, sizeof(float) * N);
+	memset(vy_prev, 0, sizeof(float) * N);
+
+	memset(density, 0, sizeof(float) * N);
+	memset(density_prev, 0, sizeof(float) * N);
+
+	memset(range, 0, sizeof(int) * N);
+
+	vertices = (Vertex*)::operator new(sizeof(Vertex) * V);
+	colors = (Color*)::operator new(sizeof(Color) * V);
+
+	glVertexPointer(2, GL_FLOAT, 0, vertices);
+	glColorPointer(3, GL_FLOAT, 0, colors);
 
 	for (int y = 0; y < H; ++y)
 		for (int x = 0; x < W; ++x)
@@ -35,8 +47,8 @@ Fluid::Fluid(Config* config, const size_t& width, const size_t& height, const fl
 			vertices[i + 3] = Vertex(x1, y0);
 		}
 
-	glVertexPointer(2, GL_FLOAT, 0, vertices.data());
-	glColorPointer(3, GL_FLOAT, 0, colors.data());
+	for (int i = 0; i < N; ++i)
+		range[i] = i;
 }
 
 void Fluid::lin_solve(int b, float* x, float* x0, float a, float c)
@@ -49,9 +61,9 @@ void Fluid::lin_solve(int b, float* x, float* x0, float a, float c)
 			{
 				x[IX(j, i)] = (x0[IX(j, i)] + a *
 					(x[IX(j - 1, i)] +
-						x[IX(j + 1, i)] +
-						x[IX(j, i - 1)] +
-						x[IX(j, i + 1)])) / c;
+					 x[IX(j + 1, i)] +
+					 x[IX(j, i - 1)] +
+					 x[IX(j, i + 1)])) / c;
 			}
 		}
 		set_bnd(b, x);
@@ -61,22 +73,25 @@ void Fluid::lin_solve(int b, float* x, float* x0, float a, float c)
 void Fluid::set_bnd(int b, float* x)
 {
 	int i;
-	for (i = 1; i < H - 1; ++i)
+	for (i = 1; i < std::max(H - 1, W - 1); ++i)
 	{
-		x[IX(0,		i)] = b == 1 ? -x[IX(1, i	 )] : x[IX(1, i	   )];
-		x[IX(W - 1, i)] = b == 1 ? -x[IX(W - 2, i)] : x[IX(W - 2, i)];
+		if (i < H - 1)
+		{
+			x[IX(0,		i)] = b == 1 ? -x[IX(1,		i)] : x[IX(1,	  i)];
+			x[IX(W - 1, i)] = b == 1 ? -x[IX(W - 2, i)] : x[IX(W - 2, i)];
+		}
+
+		if (i < W - 1)
+		{
+			x[IX(i, 0	 )] = b == 2 ? -x[IX(i, 1	 )] : x[IX(i, 1	   )];
+			x[IX(i, H - 1)] = b == 2 ? -x[IX(i, H - 2)] : x[IX(i, H - 2)];
+		}
 	}
 
-	for (i = 1; i < W - 1; ++i)
-	{
-		x[IX(i, 0	 )] = b == 2 ? -x[IX(i, 1	 )] : x[IX(i, 1	   )];
-		x[IX(i, H - 1)] = b == 2 ? -x[IX(i, H - 2)] : x[IX(i, H - 2)];
-	}
-
-	x[IX(0,		0	 )] = 0.33f * (x[IX(1,	   0	)] + x[IX(0,	 1	  )]);
-	x[IX(0,		H - 1)] = 0.33f * (x[IX(1,	   H - 1)] + x[IX(0,	 H - 2)]);
-	x[IX(W - 1, 0	 )] = 0.33f * (x[IX(W - 2, 0	)] + x[IX(W - 1, 1	  )]);
-	x[IX(W - 1, H - 1)] = 0.33f * (x[IX(W - 2, H - 1)] + x[IX(W - 1, H - 2)]);
+	x[IX(0,		0	 )] = 0.5f * (x[IX(1,	  0	   )] + x[IX(0,		1	 )]);
+	x[IX(0,		H - 1)] = 0.5f * (x[IX(1,	  H - 1)] + x[IX(0,		H - 2)]);
+	x[IX(W - 1, 0	 )] = 0.5f * (x[IX(W - 2, 0	   )] + x[IX(W - 1, 1	 )]);
+	x[IX(W - 1, H - 1)] = 0.5f * (x[IX(W - 2, H - 1)] + x[IX(W - 1, H - 2)]);
 
 }
 
@@ -172,7 +187,7 @@ void Fluid::project(float* vx, float* vy, float* p, float* div)
 void Fluid::fade_density()
 {
 	std::for_each(std::execution::par_unseq,
-		density.begin(), density.end(),
+		density, density + N,
 		[](float& d)
 		{
 			d = (d - 0.05f < 0) ? 0 : d - 0.05f;
@@ -186,56 +201,54 @@ void Fluid::step_line(int x0, int y0, int x1, int y1, int dx, int dy, float a)
 
 	if (dx > dy)
 	{
-		add_velocity(x0, y0, (x1 - x0) * a, (y1 - y0) * a);
-
 		int pk = 2 * dy - dx;
 		for (int i = 0; i < dx; ++i)
 		{
+			add_velocity(x0, y0, (x1 - x0) * a, (y1 - y0) * a);
+
 			x0 < x1 ? ++x0 : --x0;
-			if (pk < 0)
-				pk += 2 * dy;
+
+			if (pk < 0) pk += 2 * dy;
 			else
 			{
 				y0 < y1 ? ++y0 : --y0;
 				pk += 2 * dy - 2 * dx;
 			}
-			add_velocity(x0, y0, (x1 - x0) * a, (y1 - y0) * a);
 		}
 	}
 	else
 	{
-		add_velocity(x0, y0, (x1 - x0) * a, (y1 - y0) * a);
-
 		int pk = 2 * dx - dy;
 		for (int i = 0; i < dy; ++i)
 		{
+			add_velocity(x0, y0, (x1 - x0) * a, (y1 - y0) * a);
+
 			y0 < y1 ? ++y0 : --y0;
-			if (pk < 0)
-				pk += 2 * dx;
+
+			if (pk < 0) pk += 2 * dx;
 			else
 			{
 				x0 < x1 ? ++x0 : --x0;
 				pk += 2 * dx - 2 * dy;
 			}
-			add_velocity(x0, y0, (x1 - x0) * a, (y1 - y0) * a);
 		}
 	}
 }
 
 void Fluid::update(const float& dt)
 {
-	diffuse(1, vx_prev.data(), vx.data(), dt);
-	diffuse(2, vy_prev.data(), vy.data(), dt);
+	diffuse(1, vx_prev, vx, dt);
+	diffuse(2, vy_prev, vy, dt);
 
-	project(vx_prev.data(), vy_prev.data(), vx.data(), vy.data());
+	project(vx_prev, vy_prev, vx, vy);
 	
-	advect(1, vx.data(), vx_prev.data(), vx_prev.data(), vy_prev.data(), dt);
-	advect(2, vy.data(), vy_prev.data(), vx_prev.data(), vy_prev.data(), dt);
+	advect(1, vx, vx_prev, vx_prev, vy_prev, dt);
+	advect(2, vy, vy_prev, vx_prev, vy_prev, dt);
 
-	project(vx.data(), vy.data(), vx_prev.data(), vy_prev.data());
+	project(vx, vy, vx_prev, vy_prev);
 
-	diffuse(0, density_prev.data(), density.data(), dt);
-	advect(0, density.data(), density_prev.data(), vx.data(), vy.data(), dt);
+	diffuse(0, density_prev, density, dt);
+	advect(0, density, density_prev, vx, vy, dt);
 
 	fade_density();
 }
@@ -243,18 +256,18 @@ void Fluid::update(const float& dt)
 void Fluid::draw()
 {
 	std::for_each(std::execution::par_unseq,
-		range.begin(), range.end(),
+		range, range + N,
 		[&](const int& i)
 		{
 			float r = map_to_range(vx[i], -0.05f, 0.05f, 0.0f, 1.0f);
-			float g = map_to_range(vy[i], -0.05f, 0.05f, 0.0f, 1.0f);
+			float b = map_to_range(vy[i], -0.05f, 0.05f, 0.0f, 1.0f);
 
 			int vy = i * 4;
 
-			colors[vy + 0] = Color(r, g, 0.0f);
-			colors[vy + 1] = Color(r, g, 0.0f);
-			colors[vy + 2] = Color(r, g, 0.0f);
-			colors[vy + 3] = Color(r, g, 0.0f);
+			colors[vy + 0] = Color(r, 0.0f, b);
+			colors[vy + 1] = Color(r, 0.0f, b);
+			colors[vy + 2] = Color(r, 0.0f, b);
+			colors[vy + 3] = Color(r, 0.0f, b);
 		});
 
 	glDrawArrays(GL_QUADS, 0, V);

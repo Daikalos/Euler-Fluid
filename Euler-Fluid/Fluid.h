@@ -23,27 +23,6 @@ class Fluid
 public:
 	Fluid(Config* config, const size_t& width, const size_t& height, const float& diff, const float& visc);
 
-	inline int IX(int x, int y)
-	{
-		return x + y * W;
-	}
-
-	inline int IX(int i)
-	{
-		return (i % W) + i;
-	}
-
-	inline int safe_IX(int x, int y)
-	{
-		if (x < 0) x = 0;
-		else if (x > W - 1) x = W - 1;
-
-		if (y < 0) y = 0;
-		else if (y > H - 1) y = H - 1;
-		
-		return IX(x, y);
-	}
-
 	void add_density(int x, int y, float amount)
 	{
 		density[safe_IX(x, y)] += amount;
@@ -61,6 +40,21 @@ public:
 
 	void update(const float& dt);
 	void draw();
+
+private:
+	inline int IX(int x, int y) { return x + y * W; }
+	inline int IX(int i)		{ return (i % W) + i; }
+
+	inline int safe_IX(int x, int y)
+	{
+		if (x < 0) x = 0;
+		else if (x > W - 1) x = W - 1;
+
+		if (y < 0) y = 0;
+		else if (y > H - 1) y = H - 1;
+
+		return IX(x, y);
+	}
 
 private:
 	void lin_solve(int b, float* x, float* x0, float a, float c);
@@ -85,17 +79,17 @@ private:
 	size_t W, H, N, V;
 	float diff, visc;
 
-	std::vector<float> vx;
-	std::vector<float> vy;
-	std::vector<float> vx_prev;
-	std::vector<float> vy_prev;
+	float* vx;
+	float* vy;
+	float* vx_prev;
+	float* vy_prev;
 
-	std::vector<float> density;
-	std::vector<float> density_prev;
+	float* density;
+	float* density_prev;
 
-	std::vector<int> range;
+	int* range;
 
-	std::vector<Vertex> vertices;
-	std::vector<Color> colors;
+	Vertex* vertices;
+	Color* colors;
 };
 

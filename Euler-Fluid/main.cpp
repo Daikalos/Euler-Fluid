@@ -97,21 +97,16 @@ int main()
 			mouse_pos.x, mouse_pos.y, 
 			std::fabsf(amount.x), std::fabsf(amount.y), 1.0f);
 
+		mouse_pos_prev = mouse_pos;
+
 		fluid.update(dt);
 		
 		glClear(GL_COLOR_BUFFER_BIT);
-
 		glPushMatrix();
-
 		glLoadMatrixf(camera.get_world_matrix());
-
 		fluid.draw();
-
 		glPopMatrix();
-
 		window.display();
-
-		mouse_pos_prev = mouse_pos;
 	}
 
 	return 0;
