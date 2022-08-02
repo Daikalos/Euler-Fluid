@@ -4,7 +4,7 @@
 #include "Camera.h"
 #include "InputHandler.h"
 #include "Fluid.h"
-#include "Cell.h"
+#include "Config.h"
 
 int main()
 {
@@ -20,26 +20,26 @@ int main()
 	if (!video_mode.isValid())
 		return -1;
 
-	sf::RenderWindow window(video_mode, "Euler Fluid", sf::Style::Fullscreen);
+	sf::RenderWindow window(video_mode, "Euler Fluid", sf::Style::None);
 
 	if (!window.setActive(true))
 		return -1;
 
-	window.setVerticalSyncEnabled(true);
+	Config config;
+	config.load();
 
-	sf::CircleShape circle(100.0f);
-	circle.setFillColor(sf::Color::Red);
+	window.setVerticalSyncEnabled(true);
 
 	Camera camera(window);
 	InputHandler input_handler;
 	
-	sf::Vector2f mouse_pos = sf::Vector2f(camera.get_mouse_world_position());;
-	sf::Vector2f mouse_pos_prev = mouse_pos;
+	sf::Vector2i mouse_pos = camera.get_mouse_world_position() / config.scale;
+	sf::Vector2i mouse_pos_prev = mouse_pos;
 
 	sf::Clock clock;
 	float dt = FLT_EPSILON;
 
-	Fluid fluid(video_mode.size.x / 10.0f, video_mode.size.y / 10.0f, 0.0f, 0.0000001f);
+	Fluid fluid(&config, video_mode.size.x / config.scale, video_mode.size.y / config.scale, 0.0f, 0.0000001f);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -86,33 +86,32 @@ int main()
 
 		camera.update(input_handler);
 
-		mouse_pos = sf::Vector2f(camera.get_mouse_world_position());
-		sf::Vector2f amount = mouse_pos - mouse_pos_prev;
-		mouse_pos_prev = mouse_pos;
+		mouse_pos = camera.get_mouse_world_position() / config.scale;
+		sf::Vector2i amount = mouse_pos - mouse_pos_prev;
 
 		if (input_handler.get_left_held())
-			fluid.add_density(mouse_pos.x / 10.0f, mouse_pos.y / 10.0f, 200.0f);
+			fluid.add_density(mouse_pos.x, mouse_pos.y, 200.0f);
 
-		fluid.add_velocity(mouse_pos.x / 10.0f, mouse_pos.y / 10.0f, amount.x / 10.0f, amount.y / 10.0f);
+		fluid.step_line(
+			mouse_pos_prev.x, mouse_pos_prev.y,
+			mouse_pos.x, mouse_pos.y, 
+			std::fabsf(amount.x), std::fabsf(amount.y), 1.0f);
+
 		fluid.update(dt);
 		
 		glClear(GL_COLOR_BUFFER_BIT);
-
-		window.pushGLStates();
-
-
-
-		window.popGLStates();
 
 		glPushMatrix();
 
 		glLoadMatrixf(camera.get_world_matrix());
 
-		fluid.draw(window);
+		fluid.draw();
 
 		glPopMatrix();
 
 		window.display();
+
+		mouse_pos_prev = mouse_pos;
 	}
 
 	return 0;

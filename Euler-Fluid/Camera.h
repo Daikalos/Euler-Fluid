@@ -23,11 +23,6 @@ public:
 	}
 
 public:
-	inline sf::View get_view() const
-	{
-		return view;
-	}
-
 	inline const float* get_world_matrix() const
 	{
 		return sf::Transform()
@@ -57,9 +52,6 @@ private:
 	sf::Vector2f position;
 	sf::Vector2f size;
 	sf::Vector2f scale;
-
 	sf::Vector2i dragPos;
-
-	sf::View view;
 };
 

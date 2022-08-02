@@ -6,6 +6,8 @@
 
 #include <execution>
 
+#include "Config.h"
+
 struct Vertex
 {
 	GLfloat x, y;
@@ -19,11 +21,16 @@ struct Color
 class Fluid
 {
 public:
-	Fluid(const size_t& width, const size_t& height, const float& diff, const float& visc);
+	Fluid(Config* config, const size_t& width, const size_t& height, const float& diff, const float& visc);
 
 	inline int IX(int x, int y)
 	{
 		return x + y * W;
+	}
+
+	inline int IX(int i)
+	{
+		return (i % W) + i;
 	}
 
 	inline int safe_IX(int x, int y)
@@ -46,37 +53,42 @@ public:
 	{
 		int index = safe_IX(x, y);
 
-		u[index] += vx;
-		v[index] += vy;
+		this->vx[index] += vx;
+		this->vy[index] += vy;
 	}
 
-	void diffuse(int b, float* x, float* x0, float dt);
+	void step_line(int x0, int y0, int x1, int y1, int dx, int dy, float a);
 
+	void update(const float& dt);
+	void draw();
+
+private:
 	void lin_solve(int b, float* x, float* x0, float a, float c);
-
-	void advect(int b, float* d, float* d0, float* u, float* v, float dt);
-	void project(float* u, float* v, float* p, float* div);
 
 	void set_bnd(int b, float* x);
 
-	void update(const float& dt);
-	void draw(sf::RenderWindow& window);
+	void diffuse(int b, float* x, float* x0, float dt);
+	void project(float* u, float* v, float* p, float* div);
+	void advect(int b, float* d, float* d0, float* u, float* v, float dt);
 
-	float map_to_range(float val, float minIn, float maxIn, float minOut, float maxOut)
+	void fade_density();
+
+	inline float map_to_range(float val, float minIn, float maxIn, float minOut, float maxOut)
 	{
 		float x = (val - minIn) / (maxIn - minIn);
-		float result = minOut + (maxOut - minOut) * x;
-		return (result < minOut) ? minOut : (result > maxOut) ? maxOut : result;
+		return minOut + (maxOut - minOut) * x;
 	}
 
 private:
+	Config* config;
+
 	size_t W, H, N, V;
 	float diff, visc;
 
-	std::vector<float> u;
-	std::vector<float> v;
-	std::vector<float> u_prev;
-	std::vector<float> v_prev;
+	std::vector<float> vx;
+	std::vector<float> vy;
+	std::vector<float> vx_prev;
+	std::vector<float> vy_prev;
 
 	std::vector<float> density;
 	std::vector<float> density_prev;
