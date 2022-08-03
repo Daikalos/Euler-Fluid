@@ -7,6 +7,7 @@
 #include <execution>
 
 #include "Config.h"
+#include "ThreadPool.h"
 
 struct Vertex
 {
@@ -57,13 +58,13 @@ private:
 	}
 
 private:
-	void lin_solve(int b, float* x, float* x0, float a, float c);
+	void lin_solve(float* x, const float* x0, const float& a, const int& b, const float &c);
 
-	void set_bnd(int b, float* x);
+	void set_bnd(float* x, const int& b);
 
-	void diffuse(int b, float* x, float* x0, float dt);
+	void diffuse(float* x, const float* x0, const int& b, const float& dt);
+	void advect(float* d, const float* d0, const float* vx, const float* vy, const int& b, const float& dt);
 	void project(float* u, float* v, float* p, float* div);
-	void advect(int b, float* d, float* d0, float* u, float* v, float dt);
 
 	void fade_density();
 
@@ -91,5 +92,7 @@ private:
 
 	Vertex* vertices;
 	Color* colors;
+
+	ThreadPool threadpool;
 };
 

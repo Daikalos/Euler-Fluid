@@ -169,6 +169,7 @@
     <ClInclude Include="Fluid.h" />
     <ClInclude Include="InputHandler.h" />
     <ClInclude Include="Rectangle.h" />
+    <ClInclude Include="ThreadPool.h" />
     <ClInclude Include="Utilities.h" />
     <ClInclude Include="VecUtil.h" />
   </ItemGroup>

@@ -1,7 +1,7 @@
 #include "Fluid.h"
 
 Fluid::Fluid(Config* config, const size_t& width, const size_t& height, const float& diff, const float& visc)
-	: config(config), W(width), H(height), N(width * height), V(N * 4), diff(diff), visc(visc)
+	: config(config), W(width), H(height), N(width * height), V(N * 4), diff(diff), visc(visc), threadpool(std::thread::hardware_concurrency())
 {
 	vx = (float*)::operator new(sizeof(float) * N);
 	vy = (float*)::operator new(sizeof(float) * N);
@@ -51,7 +51,7 @@ Fluid::Fluid(Config* config, const size_t& width, const size_t& height, const fl
 		range[i] = i;
 }
 
-void Fluid::lin_solve(int b, float* x, float* x0, float a, float c)
+void Fluid::lin_solve(float* x, const float* x0, const float& a, const int& b, const float& c)
 {
 	for (int k = 0; k < 2; ++k)
 	{
@@ -66,11 +66,11 @@ void Fluid::lin_solve(int b, float* x, float* x0, float a, float c)
 					 x[IX(j, i + 1)])) / c;
 			}
 		}
-		set_bnd(b, x);
+		set_bnd(x, b);
 	}
 }
 
-void Fluid::set_bnd(int b, float* x)
+void Fluid::set_bnd(float* x, const int& b)
 {
 	int i;
 	for (i = 1; i < std::max(H - 1, W - 1); ++i)
@@ -95,13 +95,13 @@ void Fluid::set_bnd(int b, float* x)
 
 }
 
-void Fluid::diffuse(int b, float* x, float* x0, float dt)
+void Fluid::diffuse(float* x, const float* x0, const int& b, const float& dt)
 {
 	float a = dt * diff * (W - 2) * (H - 2);
-	lin_solve(b, x, x0, a, 1 + 6 * a);
+	lin_solve(x, x0, a, b, 1 + 6 * a);
 }
 
-void Fluid::advect(int b, float* d, float* d0, float* vx, float* vy, float dt)
+void Fluid::advect(float* d, const float* d0, const float* vx, const float* vy, const int& b, const float& dt)
 {
 	float i0, j0, i1, j1;
 	float x, y, s0, t0, s1, t1;
@@ -136,18 +136,13 @@ void Fluid::advect(int b, float* d, float* d0, float* vx, float* vy, float dt)
 			t1 = y - j0; 
 			t0 = 1.0f - t1;
 
-			int i0i = int(i0);
-			int i1i = int(i1);
-			int j0i = int(j0);
-			int j1i = int(j1);
-
 			d[IX(j, i)] =
-				s0 * (t0 * d0[safe_IX(i0i, j0i)] + t1 * d0[safe_IX(i0i, j1i)]) +
-				s1 * (t0 * d0[safe_IX(i1i, j0i)] + t1 * d0[safe_IX(i1i, j1i)]);
+				s0 * (t0 * d0[safe_IX(i0, j0)] + t1 * d0[safe_IX(i0, j1)]) +
+				s1 * (t0 * d0[safe_IX(i1, j0)] + t1 * d0[safe_IX(i1, j1)]);
 		}
 	}
 
-	set_bnd(b, d);
+	set_bnd(d, b);
 }
 
 void Fluid::project(float* vx, float* vy, float* p, float* div)
@@ -166,10 +161,10 @@ void Fluid::project(float* vx, float* vy, float* p, float* div)
 		}
 	}
 
-	set_bnd(0, div); 
-	set_bnd(0, p);
+	set_bnd(div, 0);
+	set_bnd(p, 0);
 
-	lin_solve(0, p, div, 1, 6);
+	lin_solve(p, div, 1, 0, 6);
 
 	for (int y = 1; y < H - 1; ++y)
 	{
@@ -180,8 +175,8 @@ void Fluid::project(float* vx, float* vy, float* p, float* div)
 		}
 	}
 
-	set_bnd(1, vx); 
-	set_bnd(2, vy);
+	set_bnd(vx, 1);
+	set_bnd(vy, 2);
 }
 
 void Fluid::fade_density()
@@ -237,18 +232,33 @@ void Fluid::step_line(int x0, int y0, int x1, int y1, int dx, int dy, float a)
 
 void Fluid::update(const float& dt)
 {
-	diffuse(1, vx_prev, vx, dt);
-	diffuse(2, vy_prev, vy, dt);
+	{
+		auto thread1 = threadpool.enqueue([&]() { diffuse(vx_prev, vx, 1, dt); });
+		auto thread2 = threadpool.enqueue([&]() { diffuse(vy_prev, vy, 2, dt); });
+
+		thread1.get();
+		thread2.get();
+	}
 
 	project(vx_prev, vy_prev, vx, vy);
 	
-	advect(1, vx, vx_prev, vx_prev, vy_prev, dt);
-	advect(2, vy, vy_prev, vx_prev, vy_prev, dt);
+	{
+		auto thread1 = threadpool.enqueue([&]() { advect(vx, vx_prev, vx_prev, vy_prev, 1, dt); });
+		auto thread2 = threadpool.enqueue([&]() { advect(vy, vy_prev, vx_prev, vy_prev, 2, dt); });
+
+		thread1.get();
+		thread2.get();
+	}
 
 	project(vx, vy, vx_prev, vy_prev);
 
-	diffuse(0, density_prev, density, dt);
-	advect(0, density, density_prev, vx, vy, dt);
+	{
+		auto thread1 = threadpool.enqueue([&]() { diffuse(density_prev, density, 0, dt); });
+		auto thread2 = threadpool.enqueue([&]() { advect(density, density_prev, vx, vy, 0, dt); });
+
+		thread1.get();
+		thread2.get();
+	}
 
 	fade_density();
 }
@@ -262,12 +272,12 @@ void Fluid::draw()
 			float r = 0.5f - map_to_range(vx[i], -0.05f, 0.05f, 0.0f, 1.0f);
 			float b = 0.5f - map_to_range(vy[i], -0.05f, 0.05f, 0.0f, 1.0f);
 
-			int vy = i * 4;
+			int v = i * 4;
 
-			colors[vy + 0] = Color(r, 0.0f, b);
-			colors[vy + 1] = Color(r, 0.0f, b);
-			colors[vy + 2] = Color(r, 0.0f, b);
-			colors[vy + 3] = Color(r, 0.0f, b);
+			colors[v + 0] = Color(r, 0.0f, b);
+			colors[v + 1] = Color(r, 0.0f, b);
+			colors[v + 2] = Color(r, 0.0f, b);
+			colors[v + 3] = Color(r, 0.0f, b);
 		});
 
 	glDrawArrays(GL_QUADS, 0, V);
