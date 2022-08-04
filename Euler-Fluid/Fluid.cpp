@@ -232,9 +232,15 @@ void Fluid::step_line(int x0, int y0, int x1, int y1, int dx, int dy, float a)
 
 void Fluid::update(const float& dt)
 {
+	std::function<void(float*, const float*, const int&)> diffuseFunc = std::bind(&Fluid::diffuse, this,
+		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, dt);
+
+	std::function<void(float*, const float*, const float*, const float*, const int&)> advectFunc = std::bind(&Fluid::advect, this,
+		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, dt);
+
 	{
-		auto thread1 = threadpool.enqueue([&]() { diffuse(vx_prev, vx, 1, dt); });
-		auto thread2 = threadpool.enqueue([&]() { diffuse(vy_prev, vy, 2, dt); });
+		auto thread1 = threadpool.enqueue(diffuseFunc, vx_prev, vx, 1);
+		auto thread2 = threadpool.enqueue(diffuseFunc, vy_prev, vy, 2);
 
 		thread1.get();
 		thread2.get();
@@ -243,8 +249,8 @@ void Fluid::update(const float& dt)
 	project(vx_prev, vy_prev, vx, vy);
 	
 	{
-		auto thread1 = threadpool.enqueue([&]() { advect(vx, vx_prev, vx_prev, vy_prev, 1, dt); });
-		auto thread2 = threadpool.enqueue([&]() { advect(vy, vy_prev, vx_prev, vy_prev, 2, dt); });
+		auto thread1 = threadpool.enqueue(advectFunc, vx, vx_prev, vx_prev, vy_prev, 1);
+		auto thread2 = threadpool.enqueue(advectFunc, vy, vy_prev, vx_prev, vy_prev, 2);
 
 		thread1.get();
 		thread2.get();
@@ -253,8 +259,8 @@ void Fluid::update(const float& dt)
 	project(vx, vy, vx_prev, vy_prev);
 
 	{
-		auto thread1 = threadpool.enqueue([&]() { diffuse(density_prev, density, 0, dt); });
-		auto thread2 = threadpool.enqueue([&]() { advect(density, density_prev, vx, vy, 0, dt); });
+		auto thread1 = threadpool.enqueue(diffuseFunc, density_prev, density, 0);
+		auto thread2 = threadpool.enqueue(advectFunc, density, density_prev, vx, vy, 0);
 
 		thread1.get();
 		thread2.get();
