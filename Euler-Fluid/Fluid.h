@@ -69,12 +69,6 @@ private:
 
 	void fade_density();
 
-	inline float map_to_range(float val, float minIn, float maxIn, float minOut, float maxOut)
-	{
-		float x = (val - minIn) / (maxIn - minIn);
-		return minOut + (maxOut - minOut) * x;
-	}
-
 private:
 	Config* config;
 
