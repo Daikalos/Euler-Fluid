@@ -47,7 +47,7 @@ Fluid::Fluid(Config* config, const size_t& width, const size_t& height, const fl
 			vertices[i + 3] = Vertex(x1, y0);
 		}
 
-	for (int i = 0; i < N; ++i)
+	for (size_t i = 0; i < N; ++i)
 		range[i] = i;
 }
 
@@ -232,11 +232,27 @@ void Fluid::step_line(int x0, int y0, int x1, int y1, int dx, int dy, float a)
 
 void Fluid::update(const float& dt)
 {
+	//diffuse(vx_prev, vx, 1, dt);
+	//diffuse(vy_prev, vy, 2, dt);
+
+	//project(vx_prev, vy_prev, vx, vy);
+
+	//advect(vx, vx_prev, vx_prev, vy_prev, 1, dt);
+	//advect(vy, vy_prev, vx_prev, vy_prev, 2, dt);
+
+	//project(vx, vy, vx_prev, vy_prev);
+
+	//diffuse(density_prev, density, 0, dt);
+	//advect(density, density_prev, vx, vy, 0, dt);
+
 	std::function<void(float*, const float*, const int&)> diffuseFunc = std::bind(&Fluid::diffuse, this,
 		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, dt);
 
 	std::function<void(float*, const float*, const float*, const float*, const int&)> advectFunc = std::bind(&Fluid::advect, this,
 		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, dt);
+
+	std::function<void(float*, float*, float*, float*)> projectFunc = std::bind(&Fluid::project, this,
+		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4);
 
 	{
 		auto thread1 = threadpool.enqueue(diffuseFunc, vx_prev, vx, 1);
@@ -245,25 +261,29 @@ void Fluid::update(const float& dt)
 		thread1.get();
 		thread2.get();
 	}
-
-	project(vx_prev, vy_prev, vx, vy);
 	
 	{
-		auto thread1 = threadpool.enqueue(advectFunc, vx, vx_prev, vx_prev, vy_prev, 1);
-		auto thread2 = threadpool.enqueue(advectFunc, vy, vy_prev, vx_prev, vy_prev, 2);
+		auto thread1 = threadpool.enqueue(projectFunc, vx_prev, vy_prev, vx, vy);
 
 		thread1.get();
+
+		auto thread2 = threadpool.enqueue(advectFunc, vx, vx_prev, vx_prev, vy_prev, 1);
+		auto thread3 = threadpool.enqueue(advectFunc, vy, vy_prev, vx_prev, vy_prev, 2);
+
 		thread2.get();
+		thread3.get();
 	}
 
-	project(vx, vy, vx_prev, vy_prev);
-
 	{
-		auto thread1 = threadpool.enqueue(diffuseFunc, density_prev, density, 0);
-		auto thread2 = threadpool.enqueue(advectFunc, density, density_prev, vx, vy, 0);
+		auto thread1 = threadpool.enqueue(projectFunc, vx, vy, vx_prev, vy_prev);
+		auto thread2 = threadpool.enqueue(diffuseFunc, density_prev, density, 0);
 
 		thread1.get();
+
+		auto thread3 = threadpool.enqueue(advectFunc, density, density_prev, vx, vy, 0);
+
 		thread2.get();
+		thread3.get();
 	}
 
 	fade_density();
@@ -286,5 +306,5 @@ void Fluid::draw()
 			colors[v + 3] = Color(r, 0.0f, b);
 		});
 
-	glDrawArrays(GL_QUADS, 0, V);
+	glDrawArrays(GL_QUADS, 0, V); // one draw call
 }

@@ -8,6 +8,7 @@
 
 #include "Config.h"
 #include "ThreadPool.h"
+#include "Utilities.h"
 
 struct Vertex
 {
@@ -93,6 +94,6 @@ private:
 	Vertex* vertices;
 	Color* colors;
 
-	ThreadPool threadpool;
+	ThreadPool threadpool; // using threadpooling improves the performance, but currently looking if the loops can be parallized
 };
 
