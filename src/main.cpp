@@ -20,7 +20,7 @@ int main()
 	if (!video_mode.isValid())
 		return -1;
 
-	sf::RenderWindow window(video_mode, "Euler Fluid", sf::Style::None);
+	sf::RenderWindow window(video_mode, "Euler Fluid", sf::Style::Fullscreen);
 
 	if (!window.setActive(true))
 		return -1;
@@ -39,7 +39,7 @@ int main()
 	sf::Clock clock;
 	float dt = FLT_EPSILON;
 
-	Fluid fluid(&config, video_mode.size.x / config.scale, video_mode.size.y / config.scale, 0.0f, 0.0000001f);
+	Fluid fluid(&config, 2 + video_mode.size.x / config.scale, 2 + video_mode.size.y / config.scale, 0.0f, 0.0000001f);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 

@@ -4,6 +4,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/OpenGL.hpp>
 
+#include <thread>
 #include <execution>
 
 #include "Config.h"
@@ -23,7 +24,7 @@ struct Color
 class Fluid
 {
 public:
-	Fluid(Config* config, const size_t& width, const size_t& height, const float& diff, const float& visc);
+	Fluid(Config* config, const size_t& width, const size_t& height, const float diff, const float visc);
 
 	void add_density(int x, int y, float amount)
 	{
@@ -40,14 +41,14 @@ public:
 
 	void step_line(int x0, int y0, int x1, int y1, int dx, int dy, float a);
 
-	void update(const float& dt);
+	void update(const float dt);
 	void draw();
 
 private:
-	inline int IX(int x, int y) { return x + y * W; }
-	inline int IX(int i)		{ return (i % W) + i; }
+	[[nodiscard]] constexpr int IX(const int x, const int y) const noexcept { return x + y * W; }
+	[[nodiscard]] constexpr int IX(const int i) const noexcept { return (i % W) + i; }
 
-	inline int safe_IX(int x, int y)
+	[[nodiscard]] constexpr int safe_IX(int x, int y) const noexcept
 	{
 		if (x < 0) x = 0;
 		else if (x > W - 1) x = W - 1;
@@ -59,12 +60,12 @@ private:
 	}
 
 private:
-	void lin_solve(float* x, const float* x0, const float& a, const int& b, const float &c);
+	void lin_solve(float* x, const float* x0, const float a, const int b, const float c);
 
-	void set_bnd(float* x, const int& b);
+	void set_bnd(float* x, const int b);
 
-	void diffuse(float* x, const float* x0, const int& b, const float& dt);
-	void advect(float* d, const float* d0, const float* vx, const float* vy, const int& b, const float& dt);
+	void diffuse(float* x, const float* x0, const int b, const float dt);
+	void advect(float* d, const float* d0, const float* vx, const float* vy, const int b, const float dt);
 	void project(float* u, float* v, float* p, float* div);
 
 	void fade_density();
@@ -72,8 +73,8 @@ private:
 private:
 	Config* config;
 
-	size_t W, H, N, V;
-	float diff, visc;
+	const size_t W, H, N, V;
+	const float diff, visc;
 
 	float* vx;
 	float* vy;
@@ -82,8 +83,6 @@ private:
 
 	float* density;
 	float* density_prev;
-
-	int* range;
 
 	Vertex* vertices;
 	Color* colors;
