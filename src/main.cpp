@@ -39,7 +39,7 @@ int main()
 	sf::Clock clock;
 	float dt = FLT_EPSILON;
 
-	Fluid fluid(&config, 2 + video_mode.size.x / config.scale, 2 + video_mode.size.y / config.scale, 0.0f, 0.0000001f);
+	Fluid fluid(&config, 2 + video_mode.size.x / config.scale, 2 + video_mode.size.y / config.scale, 0.0f, 0.000001f);
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 

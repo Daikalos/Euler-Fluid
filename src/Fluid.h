@@ -64,7 +64,7 @@ private:
 
 	void set_bnd(float* x, const int b);
 
-	void diffuse(float* x, const float* x0, const int b, const float dt);
+	void diffuse(float* x, const float* x0, const float diff, const int b, const float dt);
 	void advect(float* d, const float* d0, const float* vx, const float* vy, const int b, const float dt);
 	void project(float* u, float* v, float* p, float* div);
 

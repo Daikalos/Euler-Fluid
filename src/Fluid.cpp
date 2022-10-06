@@ -87,7 +87,7 @@ void Fluid::set_bnd(float* x, const int b)
 
 }
 
-void Fluid::diffuse(float* x, const float* x0, const int b, const float dt)
+void Fluid::diffuse(float* x, const float* x0, const float diff, const int b, const float dt)
 {
 	float a = dt * diff * (W - 2) * (H - 2);
 	lin_solve(x, x0, a, b, 1 + 6 * a);
@@ -175,7 +175,7 @@ void Fluid::fade_density()
 {
 	std::for_each(std::execution::par_unseq,
 		density, density + N,
-		[](float d)
+		[](float& d)
 		{
 			d = (d - 0.05f < 0) ? 0 : d - 0.05f;
 		});
@@ -238,7 +238,7 @@ void Fluid::update(const float dt)
 	//advect(density, density_prev, vx, vy, 0, dt);
 
 	const static auto diffuseFunc = std::bind(&Fluid::diffuse, this,
-		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, dt);
+		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, dt);
 
 	const static auto advectFunc = std::bind(&Fluid::advect, this,
 		std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, dt);
@@ -251,8 +251,8 @@ void Fluid::update(const float dt)
 	std::future<void> thread3;
 
 	{
-		thread1 = std::async(std::launch::deferred, diffuseFunc, vx_prev, vx, 1); // threadpool.enqueue(diffuseFunc, vx_prev, vx, 1);
-		thread2 = std::async(std::launch::deferred, diffuseFunc, vy_prev, vy, 2); //threadpool.enqueue(diffuseFunc, vy_prev, vy, 2);
+		thread1 = std::async(std::launch::deferred, diffuseFunc, vx_prev, vx, visc, 1); // threadpool.enqueue(diffuseFunc, vx_prev, vx, 1);
+		thread2 = std::async(std::launch::deferred, diffuseFunc, vy_prev, vy, visc, 2); //threadpool.enqueue(diffuseFunc, vy_prev, vy, 2);
 
 		thread1.wait();
 		thread2.wait();
@@ -272,7 +272,7 @@ void Fluid::update(const float dt)
 
 	{
 		thread1 = std::async(std::launch::deferred, projectFunc, vx, vy, vx_prev, vy_prev); //threadpool.enqueue(projectFunc, vx, vy, vx_prev, vy_prev);
-		thread2 = std::async(std::launch::deferred, diffuseFunc, density_prev, density, 0); //threadpool.enqueue(diffuseFunc, density_prev, density, 0);
+		thread2 = std::async(std::launch::deferred, diffuseFunc, density_prev, density, diff, 0); //threadpool.enqueue(diffuseFunc, density_prev, density, 0);
 
 		thread1.wait();
 
